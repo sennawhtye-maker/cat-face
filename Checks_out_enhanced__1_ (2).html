@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300;400&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #111010;
+  font-family: 'Lato', Georgia, serif;
+  color: #ccc;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 0;
+}
+
+#pawCanvas {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ===== FLIP WRAPPER ===== */
+.flip-scene {
+  width: 660px;
+  perspective: 1400px;
+}
+
+.flip-card {
+  width: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.85s cubic-bezier(0.55, 0.055, 0.675, 0.19);
+  cursor: pointer;
+}
+
+.flip-card.flipped {
+  transform: rotateY(180deg);
+  cursor: default;
+}
+
+.flip-front,
+.flip-back {
+  width: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 0 40px rgba(180,120,40,0.15), 0 0 80px rgba(0,0,0,0.6);
+}
+
+.flip-back {
+  transform: rotateY(180deg);
+  position: absolute;
+  top: 0; left: 0;
+}
+
+/* ===== FRONT FACE ===== */
+.flip-front {
+  position: relative;
+  height: 700px;
+  background: #0e0c0a;
+}
+
+.front-img {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+}
+
+/* Dark gradient overlay bottom */
+.front-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.05) 0%,
+    rgba(0,0,0,0.0) 35%,
+    rgba(10,7,3,0.6) 65%,
+    rgba(10,7,3,0.92) 100%
+  );
+  pointer-events: none;
+}
+
+/* Decorative corner claw marks */
+.front-claws {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.front-claws span {
+  position: absolute;
+  display: block;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(216,178,110,0.0), rgba(216,178,110,0.35), rgba(216,178,110,0.0));
+  transform-origin: top center;
+}
+.front-claws span:nth-child(1) { height: 160px; top: 0; left: 18px;  transform: rotate(12deg); }
+.front-claws span:nth-child(2) { height: 190px; top: 0; left: 30px;  transform: rotate(12deg); }
+.front-claws span:nth-child(3) { height: 170px; top: 0; left: 42px;  transform: rotate(12deg); }
+.front-claws span:nth-child(4) { height: 160px; top: 0; right: 18px; transform: rotate(-12deg); }
+.front-claws span:nth-child(5) { height: 190px; top: 0; right: 30px; transform: rotate(-12deg); }
+.front-claws span:nth-child(6) { height: 170px; top: 0; right: 42px; transform: rotate(-12deg); }
+
+/* Gold border frame */
+.front-frame {
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(216,178,110,0.2);
+  border-radius: 8px;
+  pointer-events: none;
+}
+.front-frame::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(216,178,110,0.08);
+  border-radius: 6px;
+}
+
+/* Info block at bottom */
+.front-info {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 28px 32px 30px;
+}
+
+.front-name {
+  font-family: 'Cinzel', serif;
+  font-size: 34px;
+  font-weight: 700;
+  color: #d8b26e;
+  letter-spacing: 4px;
+  text-shadow: 0 0 30px rgba(216,178,110,0.6), 0 2px 10px #000;
+  line-height: 1.1;
+}
+
+.front-subtitle {
+  font-size: 11px;
+  letter-spacing: 7px;
+  color: #7a5c30;
+  text-transform: uppercase;
+  margin-top: 6px;
+}
+
+.front-stats {
+  display: flex;
+  gap: 28px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(216,178,110,0.15);
+}
+
+.front-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.stat-label {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: #5a4020;
+  text-transform: uppercase;
+}
+
+.stat-val {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  color: #c8a45e;
+}
+
+/* Click hint */
+.front-hint {
+  position: absolute;
+  bottom: 22px;
+  right: 28px;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: rgba(216,178,110,0.35);
+  text-transform: uppercase;
+  animation: hintPulse 2.5s ease-in-out infinite;
+}
+
+@keyframes hintPulse {
+  0%, 100% { opacity: 0.35; }
+  50%       { opacity: 0.8; }
+}
+
+/* Back button on back face */
+.back-btn {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: rgba(26,26,26,0.85);
+  border: 1px solid #3a2a14;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #6b4c28;
+  cursor: pointer;
+  z-index: 20;
+  text-transform: uppercase;
+  transition: color 0.2s, border-color 0.2s;
+  font-family: 'Cinzel', serif;
+}
+.back-btn:hover { color: #d8b26e; border-color: #6b4c28; }
+
+/* ===== BACK FACE — PROFILE CARD ===== */
+.profile {
+  width: 100%;
+  background: #1a1a1a;
+  border: 1px solid #6b4c28;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.banner {
+  height: 180px;
+  background: linear-gradient(160deg, #1c1008 0%, #2e1a06 40%, #1a0e04 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("IMAGE_URL_HERE") center/cover no-repeat;
+  opacity: 0.45;
+}
+
+.banner-slashes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.banner-slashes span {
+  position: absolute;
+  display: block;
+  background: linear-gradient(135deg, transparent 30%, rgba(216,178,110,0.18) 50%, transparent 70%);
+  transform-origin: top left;
+  animation: clawSlide 4s ease-in-out infinite;
+}
+
+.banner-slashes span:nth-child(1) { width:3px; height:120px; top:20px; left:120px; transform:rotate(25deg); animation-delay:0s; }
+.banner-slashes span:nth-child(2) { width:3px; height:140px; top:15px; left:136px; transform:rotate(25deg); animation-delay:.08s; }
+.banner-slashes span:nth-child(3) { width:3px; height:130px; top:18px; left:152px; transform:rotate(25deg); animation-delay:.16s; }
+.banner-slashes span:nth-child(4) { width:3px; height:120px; top:20px; right:120px; transform:rotate(25deg); animation-delay:1.5s; }
+.banner-slashes span:nth-child(5) { width:3px; height:140px; top:15px; right:104px; transform:rotate(25deg); animation-delay:1.58s; }
+.banner-slashes span:nth-child(6) { width:3px; height:130px; top:18px; right:88px;  transform:rotate(25deg); animation-delay:1.66s; }
+
+@keyframes clawSlide {
+  0%   { opacity:0; transform:rotate(25deg) scaleY(0); transform-origin:top; }
+  10%  { opacity:1; transform:rotate(25deg) scaleY(1); }
+  60%  { opacity:.5; }
+  100% { opacity:0; transform:rotate(25deg) scaleY(1); }
+}
+
+.cat-ears {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 40px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.ear {
+  position: absolute;
+  top: 0;
+  width: 0; height: 0;
+  border-left: 22px solid transparent;
+  border-right: 22px solid transparent;
+  border-bottom: 36px solid #6b4c28;
+  filter: drop-shadow(0 2px 4px #000);
+}
+
+.ear::after {
+  content: '';
+  position: absolute;
+  top: 10px; left: -10px;
+  width: 0; height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 18px solid #d8b26e;
+}
+
+.ear.left  { left: 60px; }
+.ear.right { right: 60px; }
+
+/* Avatar */
+.avatar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  margin-top: -130px;
+  z-index: 10;
+  padding-bottom: 18px;
+  background: linear-gradient(to bottom, transparent 0%, #1a1a1a 42%);
+}
+
+.avatar-ring {
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  padding: 3px;
+  background: linear-gradient(135deg, #6b4c28, #d8b26e, #6b4c28);
+  box-shadow: 0 0 24px rgba(216,178,110,0.35), 0 4px 20px rgba(0,0,0,0.7);
+  position: relative;
+}
+
+.avatar-ring::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #d8b26e44, transparent, #d8b26e44);
+  animation: avatarGlow 3s ease-in-out infinite alternate;
+}
+
+@keyframes avatarGlow {
+  from { box-shadow: 0 0 10px rgba(216,178,110,0.2); }
+  to   { box-shadow: 0 0 28px rgba(216,178,110,0.55); }
+}
+
+.avatar-ring img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top center;
+  display: block;
+  border: 2px solid #1a1a1a;
+}
+
+.avatar-name {
+  font-family: 'Cinzel', serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: #d8b26e;
+  letter-spacing: 4px;
+  text-shadow: 0 0 20px rgba(216,178,110,0.5), 0 2px 8px #000;
+  margin-top: 14px;
+  text-align: center;
+}
+
+.avatar-subtitle {
+  font-size: 11px;
+  letter-spacing: 6px;
+  color: #7a5c30;
+  text-transform: uppercase;
+  margin-top: 5px;
+  text-align: center;
+}
+
+/* Toggle */
+.toggle { display: none; }
+
+/* Tab */
+.tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  border-top: 1px solid #2e2e2e;
+  overflow: hidden;
+  height: 64px;
+  transition: background 0.3s;
+}
+
+.tab:hover { background: rgba(216,178,110,0.05); }
+
+.tab-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.22;
+  transition: opacity 0.3s;
+}
+
+.toggle:checked + .tab .tab-bg { opacity: 0.38; }
+.tab:hover .tab-bg { opacity: 0.32; }
+
+.tab-label {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 18px;
+  width: 100%;
+}
+
+.tab-label span {
+  font-family: 'Cinzel', serif;
+  font-size: 15px;
+  color: #d8b26e;
+  letter-spacing: 2px;
+  text-shadow: 0 1px 6px #000;
+  flex: 1;
+}
+
+.slash-wrap {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.toggle:checked + .tab .slash-wrap {
+  animation: slashReveal 0.45s ease forwards;
+}
+
+@keyframes slashReveal {
+  0%  { opacity: 1; }
+  40% { opacity: 1; }
+  100%{ opacity: 0; }
+}
+
+.slash-line {
+  position: absolute;
+  top: -10px;
+  width: 3px;
+  height: 200%;
+  background: linear-gradient(180deg, transparent, rgba(216,178,110,0.85), transparent);
+  transform: rotate(15deg);
+  transform-origin: top center;
+}
+
+.toggle:checked + .tab .slash-line {
+  animation: slashSweep 0.45s ease forwards;
+}
+
+.slash-line:nth-child(1) { left: 30%; animation-delay: 0s; }
+.slash-line:nth-child(2) { left: 34%; animation-delay: 0.05s; }
+.slash-line:nth-child(3) { left: 38%; animation-delay: 0.10s; }
+
+@keyframes slashSweep {
+  0%   { transform: rotate(15deg) translateX(-40px); opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: rotate(15deg) translateX(800px); opacity: 0; }
+}
+
+.arrow {
+  color: #7a5c30;
+  font-size: 12px;
+  transition: transform 0.4s ease, color 0.3s;
+}
+
+.toggle:checked + .tab .arrow {
+  transform: rotate(90deg);
+  color: #d8b26e;
+}
+
+.slide {
+  max-height: 0;
+  overflow: hidden;
+  background: #161616;
+  transition: max-height 0.55s cubic-bezier(0.4,0,0.2,1);
+}
+
+.toggle:checked + .tab + .slide {
+  max-height: 420px;
+  border-top: 1px solid #2a1e0e;
+}
+
+.slide-content {
+  padding: 18px 24px;
+  line-height: 1.9;
+  font-size: 14px;
+  color: #bbb;
+  border-left: 2px solid #6b4c28;
+  margin: 14px 18px;
+  padding-left: 16px;
+}
+
+.slide-content b {
+  color: #d8b26e;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+}
+
+/* MP3 Player */
+.player-wrap {
+  padding: 20px 22px 24px;
+  background: #141414;
+  border-top: 1px solid #2a2a2a;
+}
+
+.player-title {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: #6b4c28;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.player-title::before, .player-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #3a2a14);
+}
+
+.player-title::after { background: linear-gradient(90deg, #3a2a14, transparent); }
+
+.track-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.track-art {
+  width: 52px; height: 52px;
+  border-radius: 6px;
+  background: #222;
+  border: 1px solid #3a2a14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.track-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(216,178,110,0.08), transparent);
+}
+
+.track-meta { flex: 1; min-width: 0; }
+
+.track-name {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  color: #d8b26e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-artist {
+  font-size: 11px;
+  color: #5a4020;
+  margin-top: 3px;
+  letter-spacing: 0.5px;
+}
+
+.progress-wrap {
+  margin-bottom: 12px;
+  cursor: pointer;
+  position: relative;
+}
+
+.progress-track {
+  height: 3px;
+  background: #2a2a2a;
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #6b4c28, #d8b26e);
+  border-radius: 2px;
+  transition: width 0.25s linear;
+}
+
+.progress-thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 10px; height: 10px;
+  background: #d8b26e;
+  border-radius: 50%;
+  left: 0%;
+  box-shadow: 0 0 6px rgba(216,178,110,0.6);
+  transition: left 0.25s linear;
+}
+
+.time-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #4a3820;
+  margin-top: 6px;
+  font-family: monospace;
+  letter-spacing: 0.5px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.ctrl-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6b4c28;
+  font-size: 18px;
+  padding: 6px;
+  transition: color 0.2s, transform 0.15s;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ctrl-btn:hover { color: #d8b26e; transform: scale(1.15); }
+
+.ctrl-btn.play {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid #6b4c28;
+  font-size: 20px;
+  color: #d8b26e;
+  transition: all 0.2s;
+}
+
+.ctrl-btn.play:hover {
+  background: rgba(216,178,110,0.12);
+  border-color: #d8b26e;
+  transform: scale(1.08);
+  box-shadow: 0 0 12px rgba(216,178,110,0.3);
+}
+
+.vol-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vol-icon { color: #4a3820; font-size: 13px; }
+
+.vol-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 3px;
+  background: #2a2a2a;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.vol-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: #6b4c28;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.vol-slider::-webkit-slider-thumb:hover { background: #d8b26e; }
+
+.upload-area {
+  margin-top: 14px;
+  border: 1px dashed #2e2314;
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.upload-area:hover {
+  border-color: #6b4c28;
+  background: rgba(216,178,110,0.03);
+}
+
+.upload-area label {
+  font-size: 11px;
+  color: #4a3820;
+  cursor: pointer;
+  letter-spacing: 1px;
+  display: block;
+}
+
+#fileInput { display: none; }
+
+.playlist {
+  margin-top: 12px;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.playlist::-webkit-scrollbar { width: 3px; }
+.playlist::-webkit-scrollbar-track { background: #1a1a1a; }
+.playlist::-webkit-scrollbar-thumb { background: #3a2a14; border-radius: 2px; }
+
+.pl-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 12px;
+  color: #6a5030;
+}
+
+.pl-item:hover { background: rgba(216,178,110,0.06); color: #d8b26e; }
+.pl-item.active { color: #d8b26e; background: rgba(216,178,110,0.08); }
+.pl-item .pl-num { color: #3a2814; font-size: 10px; width: 16px; text-align: right; font-family: monospace; }
+.pl-item.active .pl-num { color: #d8b26e; }
+
+/* ===== AVATAR POPUP ===== */
+.avatar-ring {
+  cursor: pointer;
+}
+.avatar-ring:hover::after {
+  content: '👁';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  z-index: 5;
+}
+
+#avatarPopup {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+}
+
+#avatarPopup.show {
+  pointer-events: auto;
+  animation: popupIn 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards,
+             popupOut 0.5s ease-in 3s forwards;
+}
+
+@keyframes popupIn {
+  from { opacity: 0; transform: scale(0.82); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes popupOut {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.9); }
+}
+
+.popup-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.78);
+  backdrop-filter: blur(6px);
+}
+
+.popup-img-wrap {
+  position: relative;
+  z-index: 1;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid rgba(216,178,110,0.45);
+  box-shadow: 0 0 60px rgba(216,178,110,0.25), 0 8px 40px rgba(0,0,0,0.8);
+  max-width: 88vw;
+  max-height: 88vh;
+}
+
+.popup-img-wrap img {
+  display: block;
+  max-width: 520px;
+  max-height: 80vh;
+  width: 100%;
+  object-fit: contain;
+}
+
+.popup-glow {
+  position: absolute;
+  inset: -2px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(216,178,110,0.2), transparent 60%);
+  pointer-events: none;
+}
+
+</style>
+</head>
+<body>
+
+<!-- Avatar Popup -->
+<div id="avatarPopup">
+  <div class="popup-backdrop" id="popupBackdrop"></div>
+  <div class="popup-img-wrap">
+    <img src="https://i.ibb.co/99WNdK0h/94da97f314d2c4e74fd8259b411664d7.jpg" alt="Zi'one Massé Full">
+    <div class="popup-glow"></div>
+  </div>
+</div>
+
+<canvas id="pawCanvas"></canvas>
+
+<div class="flip-scene">
+  <div class="flip-card" id="flipCard">
+
+    <!-- ===== FRONT FACE ===== -->
+    <div class="flip-front" onclick="document.getElementById('flipCard').classList.add('flipped')">
+      <img class="front-img" src="https://i.ibb.co/1GWDrPy3/Clean-up.png" alt="Kael Strayclaw">
+      <div class="front-overlay"></div>
+      <div class="front-claws">
+        <span></span><span></span><span></span>
+        <span></span><span></span><span></span>
+      </div>
+      <div class="front-frame"></div>
+
+      <div class="front-info">
+        <div class="front-name">Zi'one<br>Massé</div>
+        <div class="front-subtitle">Lone</div>
+        <div class="front-stats">
+          <div class="front-stat">
+            <span class="stat-label">Record</span>
+            <span class="stat-val">4/3/2</span>
+          </div>
+          <div class="front-stat">
+            <span class="stat-label">Profression</span>
+            <span class="stat-val">Brawler/Invigator</span>
+          </div>
+          <div class="front-stat">
+            <span class="stat-label">Age</span>
+            <span class="stat-val">Late Teens, Young Adult</span>
+          </div>
+          <div class="front-stat">
+            <span class="stat-label">Height</span>
+            <span class="stat-val">5'9"</span>
+          </div>
+          <div class="front-stat">
+            <span class="stat-label">Weapon</span>
+            <span class="stat-val">Handwraps</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="front-hint">Tap ▶</div>
+    </div>
+
+    <!-- ===== BACK FACE ===== -->
+    <div class="flip-back">
+      <button class="back-btn" onclick="document.getElementById('flipCard').classList.remove('flipped')">◀ Back</button>
+
+      <div class="profile">
+        <div class="banner">
+          <div class="cat-ears">
+            <div class="ear left"></div>
+            <div class="ear right"></div>
+          </div>
+          <div class="banner-slashes">
+            <span></span><span></span><span></span>
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+
+        <div class="avatar-wrap">
+          <div class="avatar-ring" id="avatarRing">
+            <img src="https://i.ibb.co/0pLm1335/94adf7912fb3c362a3b8e956f463c72a.jpg" alt="Zi'one Massé">
+          </div>
+          <div class="avatar-name">Zi'one Massé</div>
+          <div class="avatar-subtitle">Zephyr Fangs</div>
+        </div>
+
+        <!-- Profile -->
+        <input type="checkbox" id="profile" class="toggle">
+        <label for="profile" class="tab">
+          <div class="tab-bg" style="background-image:url('https://i.ibb.co/gMxv3cVx/Screenshot-130.png')"></div>
+          <div class="slash-wrap">
+            <div class="slash-line"></div><div class="slash-line"></div><div class="slash-line"></div>
+          </div>
+          <div class="tab-label"><span>Profile</span><div class="arrow">▶</div></div>
+        </label>
+        <div class="slide">
+          <div class="slide-content">
+            <b>Age:</b> Young Adult<br>
+            <b>Height:</b> 5'9"<br>
+            <b>Weapon:</b> Handwraps
+            <b>Body:</b> Muscular, body builder
+            <b>Voice:</b> Softer, but firm
+            <b>Eyes:</b> Feline, golden yellow
+          </div>
+        </div>
+
+        <!-- Description -->
+        <input type="checkbox" id="desc" class="toggle">
+        <label for="desc" class="tab">
+          <div class="tab-bg" style="background-image:url('https://i.ibb.co/jZBnMcwr/Screenshot-133.png')"></div>
+          <div class="slash-wrap">
+            <div class="slash-line"></div><div class="slash-line"></div><div class="slash-line"></div>
+          </div>
+          <div class="tab-label"><span>Description</span><div class="arrow">▶</div></div>
+        </label>
+        <div class="slide">
+          <div class="slide-content">
+            Before you stands an unusual person, possessing a ravishing visage. Their physique appears to be both muscular and athletic, and those attuned to such details may detect a subtle aura of magical energy surrounding them. Their hair is a mix of two distinct colors, complemented by feline-like golden eyes. Previously infamous in these streets for various reasons, they now exhibit a more tranquil demeanor due to their current career. Adorning their right arm is nearly a full sleeve of tattoos, while a depiction of byakko is inked on their back.
+          </div>
+        </div>
+
+        <!-- Traits -->
+        <input type="checkbox" id="traits" class="toggle">
+        <label for="traits" class="tab">
+          <div class="tab-bg" style="background-image:url('https://i.ibb.co/8Lw1B5Nt/Screenshot-131.png')"></div>
+          <div class="slash-wrap">
+            <div class="slash-line"></div><div class="slash-line"></div><div class="slash-line"></div>
+          </div>
+          <div class="tab-label"><span>Traits</span><div class="arrow">▶</div></div>
+        </label>
+        <div class="slide">
+          <div class="slide-content">
+            • Prideful - Has trouble willingly accepting help from others.<br>• Curious - Is interested in random info they don't know about.<br>• Competitive - Doesn't like losing, especially if it's a winnable fight. They won't be as upset if it's a losing battle.<br>• Eccentric - They have a unique way of thinking.<br>• Beauty - They are exceptionally attractive.<br>• Feline - They have fangs and cat-like eyes.
+          </div>
+        </div>
+
+        <!-- Relationships -->
+        <input type="checkbox" id="relations" class="toggle">
+        <label for="relations" class="tab">
+          <div class="tab-bg" style="background-image:url('https://i.ibb.co/WN0k0wzy/Screenshot-132.png')"></div>
+          <div class="slash-wrap">
+            <div class="slash-line"></div><div class="slash-line"></div><div class="slash-line"></div>
+          </div>
+          <div class="tab-label"><span>Feats</span><div class="arrow">▶</div></div>
+        </label>
+        <div class="slide">
+          <div class="slide-content">
+            <b>•</b> N/A<br>
+            <b>•</b> N/A
+          </div>
+        </div>
+
+        <!-- MP3 Player -->
+        <div class="player-wrap">
+          <div class="player-title">Now Playing</div>
+          <div class="track-info">
+            <div class="track-art" id="trackArt">🐾</div>
+            <div class="track-meta">
+              <div class="track-name" id="trackName">Zi'one's Theme</div>
+              <div class="track-artist" id="trackArtist">Zi'one Massé</div>
+            </div>
+          </div>
+          <div class="progress-wrap" id="progressWrap">
+            <div class="progress-track">
+              <div class="progress-fill" id="progressFill"></div>
+              <div class="progress-thumb" id="progressThumb"></div>
+            </div>
+            <div class="time-row">
+              <span id="currentTime">0:00</span>
+              <span id="totalTime">0:00</span>
+            </div>
+          </div>
+          <div class="controls">
+            <button class="ctrl-btn" id="prevBtn">⏮</button>
+            <button class="ctrl-btn" id="shuffleBtn">⇄</button>
+            <button class="ctrl-btn play" id="playBtn">▶</button>
+            <button class="ctrl-btn" id="repeatBtn">↺</button>
+            <button class="ctrl-btn" id="nextBtn">⏭</button>
+          </div>
+          <div class="vol-row">
+            <span class="vol-icon">🔈</span>
+            <input type="range" class="vol-slider" id="volSlider" min="0" max="1" step="0.01" value="0.8">
+            <span class="vol-icon">🔊</span>
+          </div>
+          <div class="playlist" id="playlist"></div>
+        </div>
+
+      </div><!-- .profile -->
+    </div><!-- .flip-back -->
+
+  </div><!-- .flip-card -->
+</div><!-- .flip-scene -->
+
+<script>
+/* AVATAR POPUP */
+(function() {
+  const ring    = document.getElementById('avatarRing');
+  const popup   = document.getElementById('avatarPopup');
+  const backdrop= document.getElementById('popupBackdrop');
+  let popupTimer = null;
+
+  function openPopup() {
+    clearTimeout(popupTimer);
+    popup.classList.remove('show');
+    /* Force reflow so animation restarts cleanly */
+    void popup.offsetWidth;
+    popup.classList.add('show');
+    /* Auto-dismiss after animation completes (3s show + 0.5s fade = 3.5s) */
+    popupTimer = setTimeout(() => {
+      popup.classList.remove('show');
+    }, 3500);
+  }
+
+  ring.addEventListener('click', e => { e.stopPropagation(); openPopup(); });
+  backdrop.addEventListener('click', () => {
+    clearTimeout(popupTimer);
+    popup.classList.remove('show');
+  });
+})();
+
+/* PAW TRAIL */
+const canvas = document.getElementById('pawCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+
+const paws = [];
+let stepToggle = 0;
+
+function drawPaw(x, y, size, opacity, flip) {
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.translate(x, y);
+  if (flip) ctx.scale(-1, 1);
+  ctx.fillStyle = '#d8b26e';
+  ctx.beginPath();
+  ctx.ellipse(0, size*0.3, size*0.55, size*0.45, 0, 0, Math.PI*2);
+  ctx.fill();
+  [[-size*.45,-size*.2],[-size*.15,-size*.42],[size*.15,-size*.42],[size*.45,-size*.2]].forEach(([tx,ty]) => {
+    ctx.beginPath(); ctx.ellipse(tx,ty,size*.2,size*.18,0,0,Math.PI*2); ctx.fill();
+  });
+  ctx.restore();
+}
+
+window.addEventListener('mousemove', e => {
+  if (Math.random() > 0.85) {
+    stepToggle = !stepToggle;
+    paws.push({ x: e.clientX+(stepToggle?12:-12), y: e.clientY+(stepToggle?12:-12), size:8+Math.random()*4, life:1.0, flip:stepToggle });
+  }
+});
+
+(function animPaws() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  paws.forEach(p => { p.life -= 0.018; drawPaw(p.x,p.y,p.size,Math.max(0,p.life*0.45),p.flip); });
+  for (let i=paws.length-1;i>=0;i--) if(paws[i].life<=0) paws.splice(i,1);
+  requestAnimationFrame(animPaws);
+})();
+
+/* MP3 PLAYER */
+const CATBOX_URL = 'https://files.catbox.moe/chhbvt.mp3';
+const audio = new Audio();
+audio.crossOrigin = 'anonymous';
+let tracks = [
+  { url: CATBOX_URL, name: "Zi'one's Theme", artist: "Zi'one Massé" }
+];
+let currentIdx = 0, isPlaying = false, shuffle = false, repeat = false;
+
+const playBtn      = document.getElementById('playBtn');
+const prevBtn      = document.getElementById('prevBtn');
+const nextBtn      = document.getElementById('nextBtn');
+const shuffleBtn   = document.getElementById('shuffleBtn');
+const repeatBtn    = document.getElementById('repeatBtn');
+const volSlider    = document.getElementById('volSlider');
+const progressFill = document.getElementById('progressFill');
+const progressThumb= document.getElementById('progressThumb');
+const progressWrap = document.getElementById('progressWrap');
+const currentTimeEl= document.getElementById('currentTime');
+const totalTimeEl  = document.getElementById('totalTime');
+const trackNameEl  = document.getElementById('trackName');
+const trackArtistEl= document.getElementById('trackArtist');
+const playlistEl   = document.getElementById('playlist');
+
+const fmt = s => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+audio.volume = 0.8;
+
+function loadTrack(idx) {
+  if (idx < 0 || idx >= tracks.length) return;
+  currentIdx = idx;
+  audio.src  = tracks[idx].url;
+  trackNameEl.textContent   = tracks[idx].name;
+  trackArtistEl.textContent = tracks[idx].artist;
+  audio.load();
+  if (isPlaying) audio.play().catch(()=>{});
+  renderPlaylist();
+}
+
+function renderPlaylist() {
+  playlistEl.innerHTML = '';
+  tracks.forEach((t, i) => {
+    const d = document.createElement('div');
+    d.className = 'pl-item' + (i === currentIdx ? ' active' : '');
+    d.innerHTML = `<span class="pl-num">${i+1}</span><span>${t.name}</span>`;
+    d.onclick = () => { isPlaying = true; loadTrack(i); };
+    playlistEl.appendChild(d);
+  });
+}
+
+function togglePlay() {
+  if (!tracks.length) return;
+  if (isPlaying) { audio.pause(); playBtn.textContent='▶'; isPlaying=false; }
+  else { audio.play().catch(()=>{}); playBtn.textContent='⏸'; isPlaying=true; }
+}
+playBtn.addEventListener('click', togglePlay);
+
+prevBtn.addEventListener('click', () => {
+  if (!tracks.length) return;
+  if (audio.currentTime > 3) { audio.currentTime = 0; }
+  else { isPlaying=true; loadTrack((currentIdx-1+tracks.length)%tracks.length); }
+});
+nextBtn.addEventListener('click', () => {
+  if (!tracks.length) return;
+  isPlaying=true;
+  loadTrack(shuffle ? Math.floor(Math.random()*tracks.length) : (currentIdx+1)%tracks.length);
+});
+shuffleBtn.addEventListener('click', () => { shuffle=!shuffle; shuffleBtn.style.color=shuffle?'#d8b26e':'#6b4c28'; });
+repeatBtn.addEventListener('click',  () => { repeat=!repeat;   repeatBtn.style.color=repeat?'#d8b26e':'#6b4c28'; });
+volSlider.addEventListener('input',  () => { audio.volume=volSlider.value; });
+
+audio.addEventListener('ended', () => {
+  if (repeat) { audio.currentTime=0; audio.play().catch(()=>{}); }
+  else { isPlaying=true; loadTrack(shuffle?Math.floor(Math.random()*tracks.length):(currentIdx+1)%tracks.length); }
+});
+
+audio.addEventListener('timeupdate', () => {
+  if (!audio.duration) return;
+  const pct = (audio.currentTime/audio.duration)*100;
+  progressFill.style.width=pct+'%'; progressThumb.style.left=pct+'%';
+  currentTimeEl.textContent=fmt(audio.currentTime); totalTimeEl.textContent=fmt(audio.duration);
+});
+
+progressWrap.addEventListener('click', e => {
+  if (!audio.duration) return;
+  const rect = progressWrap.querySelector('.progress-track').getBoundingClientRect();
+  audio.currentTime = Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width))*audio.duration;
+});
+
+let seeking=false;
+progressWrap.addEventListener('mousedown', ()=>{ seeking=true; });
+window.addEventListener('mousemove', e => {
+  if (!seeking||!audio.duration) return;
+  const rect=progressWrap.querySelector('.progress-track').getBoundingClientRect();
+  audio.currentTime=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width))*audio.duration;
+});
+window.addEventListener('mouseup', ()=>{ seeking=false; });
+
+const fileInput = document.getElementById('fileInput');
+if (fileInput) {
+  fileInput.addEventListener('change', e => {
+    Array.from(e.target.files).forEach(f => {
+      let raw=f.name.replace(/\.[^.]+$/,''),parts=raw.split(' - ');
+      tracks.push({url:URL.createObjectURL(f),name:parts.length>1?parts.slice(1).join(' - '):raw,artist:parts.length>1?parts[0]:'Unknown'});
+    });
+    renderPlaylist();
+    if(!isPlaying) loadTrack(tracks.length-Array.from(e.target.files).length);
+  });
+}
+
+const ua=document.querySelector('.upload-area');
+if(ua){
+  ua.addEventListener('dragover',e=>{e.preventDefault();ua.style.borderColor='#d8b26e';});
+  ua.addEventListener('dragleave',()=>{ua.style.borderColor='';});
+  ua.addEventListener('drop',e=>{
+    e.preventDefault();ua.style.borderColor='';
+    Array.from(e.dataTransfer.files).filter(f=>f.type.startsWith('audio/')).forEach(f=>{
+      let raw=f.name.replace(/\.[^.]+$/,''),parts=raw.split(' - ');
+      tracks.push({url:URL.createObjectURL(f),name:parts.length>1?parts.slice(1).join(' - '):raw,artist:parts.length>1?parts[0]:'Unknown'});
+    });
+    renderPlaylist();
+    if(!isPlaying) loadTrack(tracks.length-1);
+  });
+}
+
+loadTrack(0);
+audio.play().then(()=>{ playBtn.textContent='⏸'; isPlaying=true; }).catch(()=>{
+  const unlock=()=>{ audio.play().then(()=>{ playBtn.textContent='⏸'; isPlaying=true; }); document.removeEventListener('click',unlock); };
+  document.addEventListener('click',unlock);
+});
+</script>
+</body>
+</html>
